@@ -1,17 +1,18 @@
 from playwright.sync_api import sync_playwright
 import smtplib
 from email.mime.text import MIMEText
+import os
 
 TARGET_URLS = [
     "https://www.thelayoff.com/resmed",
     "https://boxden.com/forumdisplay.php?f=218"
 ]
 
-# Email setup
+# Email setup using GitHub Secrets
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-EMAIL_USER = "anish653931@gmail.com"
-EMAIL_PASS = "jnob oinu salq bupj"
+EMAIL_USER = os.environ['EMAIL_USER']
+EMAIL_PASS = os.environ['EMAIL_PASS']
 TO_EMAIL = "anish653931@gmail.com"
 
 def send_email(body):
