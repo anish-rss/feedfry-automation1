@@ -1,6 +1,4 @@
 from playwright.sync_api import sync_playwright
-import smtplib
-from email.mime.text import MIMEText
 
 # List of URLs to generate RSS feeds for
 TARGET_URLS = [
@@ -8,62 +6,57 @@ TARGET_URLS = [
     "https://boxden.com/forumdisplay.php?f=218"
 ]
 
-# Email configuration
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-EMAIL_USER = "anish653931@gmail.com"
-EMAIL_PASS = "jnob oinu salq bupj"
-TO_EMAIL = "anish653931@gmail.com"
-
-def send_email(body):
-    msg = MIMEText(body)
-    msg["Subject"] = "Your Weekly RSS Feeds"
-    msg["From"] = EMAIL_USER
-    msg["To"] = TO_EMAIL
-
-    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-        server.starttls()
-        server.login(EMAIL_USER, EMAIL_PASS)
-        server.send_message(msg)
-
 def create_feeds():
-    message = ""
-
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=False, slow_mo=500)
 
         for url in TARGET_URLS:
-            page = browser.new_page()
+            print(f"\n🔍 Processing: {url}")
+            context = browser.new_context()
+            page = context.new_page()
             try:
+                # Visit Feedfry
                 page.goto("https://feedfry.com", timeout=60000)
 
+                # Input URL and trigger event
                 form = page.locator('form[action="/preview"]')
-                form.locator('input#url').fill(url)
+                url_input = form.locator('input#url')
+                url_input.click()
+                url_input.fill("")
+                url_input.type(url)
+                url_input.press("Enter")
+                print("👉 URL field typed and triggered.")
+                page.wait_for_timeout(2000)
+
+                # Click submit
                 form.locator('button[type="submit"]').nth(1).click()
                 page.wait_for_timeout(3000)
 
-                version1_button = page.locator('#version_1 form button').nth(0)
-                version1_button.wait_for(state="visible", timeout=10000)
-                version1_button.click()
-                page.wait_for_timeout(3000)
+                # Try clicking "Version 1"
+                version1_button = page.locator('#version_1 form button').first
+                try:
+                    version1_button.wait_for(state="visible", timeout=10000)
+                    version1_button.click()
+                    print("📰 Clicked Version 1 button.")
+                    page.wait_for_timeout(3000)
+                except:
+                    print("⚠️ 'Version 1' not available, checking if redirected to feed page...")
 
+                # Look for RSS feed input field
                 rss_input = page.locator("input.form-control").first
                 rss_url = rss_input.input_value()
 
-                # Check if a valid RSS URL was extracted
                 if rss_url and rss_url.startswith("http"):
-                    message += f"{url}\n{rss_url}\n\n"
+                    print(f"✅ RSS feed for {url}:\n{rss_url}")
                 else:
-                    message += f"{url}\nERROR: Could not extract valid RSS URL\n\n"
+                    print(f"❌ No RSS feed found for {url}")
 
             except Exception as e:
-                message += f"{url}\nERROR: {e}\n\n"
+                print(f"❌ Error processing {url}: {e}")
             finally:
-                page.close()
+                context.close()
 
         browser.close()
-
-    send_email(message)
 
 if __name__ == "__main__":
     create_feeds()
