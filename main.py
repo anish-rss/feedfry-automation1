@@ -1,18 +1,18 @@
 from playwright.sync_api import sync_playwright
 import smtplib
 from email.mime.text import MIMEText
-import os
 
+# List of URLs to generate RSS feeds for
 TARGET_URLS = [
     "https://www.thelayoff.com/resmed",
     "https://boxden.com/forumdisplay.php?f=218"
 ]
 
-# Email setup using GitHub Secrets
+# Email configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-EMAIL_USER = os.environ['EMAIL_USER']
-EMAIL_PASS = os.environ['EMAIL_PASS']
+EMAIL_USER = "anish653931@gmail.com"
+EMAIL_PASS = "jnob oinu salq bupj"
 TO_EMAIL = "anish653931@gmail.com"
 
 def send_email(body):
@@ -28,13 +28,15 @@ def send_email(body):
 
 def create_feeds():
     message = ""
+
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
 
         for url in TARGET_URLS:
+            page = browser.new_page()
             try:
                 page.goto("https://feedfry.com", timeout=60000)
+
                 form = page.locator('form[action="/preview"]')
                 form.locator('input#url').fill(url)
                 form.locator('button[type="submit"]').nth(1).click()
@@ -48,9 +50,16 @@ def create_feeds():
                 rss_input = page.locator("input.form-control").first
                 rss_url = rss_input.input_value()
 
-                message += f"{url}\n{rss_url}\n\n"
+                # Check if a valid RSS URL was extracted
+                if rss_url and rss_url.startswith("http"):
+                    message += f"{url}\n{rss_url}\n\n"
+                else:
+                    message += f"{url}\nERROR: Could not extract valid RSS URL\n\n"
+
             except Exception as e:
                 message += f"{url}\nERROR: {e}\n\n"
+            finally:
+                page.close()
 
         browser.close()
 
